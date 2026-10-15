@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SubRadar - Smart Trial & Auto-Debit Tracker</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #090d16;
+      color: #f1f5f9;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card-urgent {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(30, 41, 59, 0.8));
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+    .pulse-dot {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.15); }
+    }
+    /* Hide scrollbars but keep functionality */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen pb-20 selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-30 border-b border-slate-800 bg-[#090d16]/90 backdrop-blur-md px-4 py-3.5">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-amber-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-xl font-bold">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center space-x-1.5">
+            <span class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">SubRadar</span>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Privacy First</span>
+          </div>
+          <p class="text-xs text-slate-400">Never get charged unexpectedly</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <!-- Currency Selector -->
+        <select id="currencySelector" class="bg-slate-800/90 text-xs font-semibold text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+          <option value="INR" selected>₹ INR</option>
+          <option value="USD">$ USD</option>
+          <option value="EUR">€ EUR</option>
+          <option value="GBP">£ GBP</option>
+        </select>
+
+        <!-- Install PWA Button -->
+        <button id="pwaHelpBtn" class="flex items-center space-x-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-700 transition">
+          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+          </svg>
+          <span class="hidden sm:inline">Add to Phone</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-4xl mx-auto px-4 pt-5 space-y-6">
+
+    <!-- HERO METRICS -->
+    <section class="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+      <!-- Card 1: Urgent Alert -->
+      <div class="glass-card rounded-2xl p-4 border border-rose-500/30 relative overflow-hidden group">
+        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-rose-500/10 rounded-full blur-xl"></div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-medium text-rose-300">Expiring Soon (48h)</span>
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-500 pulse-dot"></span>
+        </div>
+        <div id="urgentCountDisplay" class="text-2xl sm:text-3xl font-extrabold text-rose-400">0</div>
+        <p class="text-[11px] text-slate-400 mt-1">Requires your review</p>
+      </div>
+
+      <!-- Card 2: Monthly Burn -->
+      <div class="glass-card rounded-2xl p-4 border border-slate-700/80">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-medium text-slate-400">Monthly Burn</span>
+          <span class="text-sm">💳</span>
+        </div>
+        <div id="monthlyBurnDisplay" class="text-2xl sm:text-3xl font-extrabold text-white">₹0</div>
+        <p class="text-[11px] text-slate-400 mt-1">Active paid subscriptions</p>
+      </div>
+
+      <!-- Card 3: Total Saved -->
+      <div class="glass-card rounded-2xl p-4 border border-emerald-500/30 col-span-2 sm:col-span-1">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-medium text-emerald-400">Total Money Saved</span>
+          <span class="text-sm">🎉</span>
+        </div>
+        <div id="moneySavedDisplay" class="text-2xl sm:text-3xl font-extrabold text-emerald-400">₹0</div>
+        <p class="text-[11px] text-slate-400 mt-1">From cancelled trials</p>
+      </div>
+    </section>
+
+    <!-- ACTION BAR: ADD + FILTERS + SEARCH -->
+    <section class="space-y-3">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <!-- Add Button -->
+        <button id="openAddModalBtn" class="flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 text-white font-semibold py-2.5 px-5 rounded-xl shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 transition active:scale-[0.98]">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
+          </svg>
+          <span>Track New Trial / Subscription</span>
+        </button>
+
+        <!-- Search Input -->
+        <div class="relative flex-1 max-w-xs">
+          <input id="searchInput" type="text" placeholder="Search service..." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Filter Pills -->
+      <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1">
+        <button data-filter="all" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white transition whitespace-nowrap">All Items (<span id="countAll">0</span>)</button>
+        <button data-filter="urgent" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">Expiring Soon ⚠️ (<span id="countUrgent">0</span>)</button>
+        <button data-filter="web" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">🌐 Domains & Web (<span id="countWeb">0</span>)</button>
+        <button data-filter="accounting" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">📊 Accounting & GST (<span id="countAccounting">0</span>)</button>
+        <button data-filter="work" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">💼 Work & Office (<span id="countWork">0</span>)</button>
+        <button data-filter="personal" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">🍿 Personal / Media (<span id="countPersonal">0</span>)</button>
+        <button data-filter="trials" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">Free Trials 🎁 (<span id="countTrials">0</span>)</button>
+        <button data-filter="recurring" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">Paid Recurring 💳 (<span id="countPaid">0</span>)</button>
+        <button data-filter="cancelled" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition whitespace-nowrap">Cancelled & Saved 🏆 (<span id="countCancelled">0</span>)</button>
+      </div>
+    </section>
+
+    <!-- LIST OF TRACKED ITEMS -->
+    <section id="itemsListContainer" class="space-y-3.5">
+      <!-- Injected via JavaScript -->
+    </section>
+
+    <!-- PRIVACY & EXPORT TOOLBAR -->
+    <section class="glass-card rounded-2xl p-4 border border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+      <div class="flex items-center space-x-2 text-center sm:text-left">
+        <span class="text-base">🔒</span>
+        <span>Your data never touches any server. It is saved directly in your device.</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="exportDataBtn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium border border-slate-700 transition">
+          Backup Data
+        </button>
+        <label class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium border border-slate-700 transition cursor-pointer">
+          Restore
+          <input type="file" id="importFileInput" accept=".json" class="hidden">
+        </label>
+        <button id="resetDemoBtn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-400 font-medium border border-slate-700 transition">
+          Reset Demo
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ADD / EDIT MODAL -->
+  <div id="itemModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl my-8">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 id="modalTitle" class="text-lg font-bold text-white">Track New Trial or Service</h3>
+        <button id="closeModalBtn" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick Preset Selector -->
+      <div class="px-6 pt-4 pb-2">
+        <div class="flex flex-col gap-1.5 mb-2">
+          <label class="block text-xs font-semibold text-slate-400">QUICK SELECT PRESETS BY CATEGORY:</label>
+          <div class="flex items-center space-x-1.5 text-[11px] overflow-x-auto no-scrollbar pb-1">
+            <button type="button" data-tab="web" class="preset-tab-btn px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium whitespace-nowrap">🌐 Website & Domain</button>
+            <button type="button" data-tab="accounting" class="preset-tab-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white font-medium whitespace-nowrap">📊 Accounting & GST</button>
+            <button type="button" id="presetTabWork" data-tab="work" class="preset-tab-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white font-medium whitespace-nowrap">💼 Work Software</button>
+            <button type="button" id="presetTabPersonal" data-tab="personal" class="preset-tab-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white font-medium whitespace-nowrap">🍿 Personal / Media</button>
+          </div>
+        </div>
+
+        <!-- 1. Website & Domain Presets -->
+        <div id="presets_web" class="preset-cat-container flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1 text-xs">
+          <button type="button" data-preset="GoDaddy" class="preset-btn px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-200 whitespace-nowrap font-medium">🌐 GoDaddy Domain</button>
+          <button type="button" data-preset="Hostinger" class="preset-btn px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-200 whitespace-nowrap font-medium">🖥️ Hostinger Hosting</button>
+          <button type="button" data-preset="Shopify" class="preset-btn px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-200 whitespace-nowrap font-medium">🛍️ Shopify Store</button>
+          <button type="button" data-preset="Namecheap" class="preset-btn px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-200 whitespace-nowrap font-medium">🔒 Namecheap & SSL</button>
+          <button type="button" data-preset="AWS" class="preset-btn px-2.5 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 text-emerald-200 whitespace-nowrap font-medium">☁️ AWS Cloud Server</button>
+        </div>
+
+        <!-- 2. Accounting Presets -->
+        <div id="presets_accounting" class="preset-cat-container hidden flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1 text-xs">
+          <button type="button" data-preset="ZohoBooks" class="preset-btn px-2.5 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 text-cyan-200 whitespace-nowrap font-medium">📊 Zoho Books</button>
+          <button type="button" data-preset="Tally" class="preset-btn px-2.5 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 text-cyan-200 whitespace-nowrap font-medium">🧾 TallyPrime Cloud</button>
+          <button type="button" data-preset="QuickBooks" class="preset-btn px-2.5 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 text-cyan-200 whitespace-nowrap font-medium">📗 QuickBooks Online</button>
+          <button type="button" data-preset="Vyapar" class="preset-btn px-2.5 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 text-cyan-200 whitespace-nowrap font-medium">📱 Vyapar / myBillBook</button>
+          <button type="button" data-preset="Xero" class="preset-btn px-2.5 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 text-cyan-200 whitespace-nowrap font-medium">📘 Xero Accounting</button>
+        </div>
+        
+        <!-- 3. Work Software Presets -->
+        <div id="presets_work" id="presetsWorkContainer" class="preset-cat-container hidden flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1 text-xs">
+          <button type="button" data-preset="LinkedIn" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">💼 LinkedIn Premium</button>
+          <button type="button" data-preset="Adobe" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">🎨 Adobe Creative Cloud</button>
+          <button type="button" data-preset="ChatGPT" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">🤖 ChatGPT Plus</button>
+          <button type="button" data-preset="GoogleWorkspace" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">🏢 Google Workspace</button>
+          <button type="button" data-preset="GitHubCopilot" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">💻 GitHub Copilot</button>
+          <button type="button" data-preset="Zoom" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">📹 Zoom Pro</button>
+          <button type="button" data-preset="Notion" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">📝 Notion Plus</button>
+          <button type="button" data-preset="Microsoft365" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">📊 Microsoft 365</button>
+          <button type="button" data-preset="Slack" class="preset-btn px-2.5 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-200 whitespace-nowrap font-medium">💬 Slack Pro</button>
+        </div>
+
+        <!-- 4. Personal Presets -->
+        <div id="presets_personal" id="presetsPersonalContainer" class="preset-cat-container hidden flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1 text-xs">
+          <button type="button" data-preset="Netflix" class="preset-btn px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 whitespace-nowrap">🍿 Netflix</button>
+          <button type="button" data-preset="Spotify" class="preset-btn px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 whitespace-nowrap">🎵 Spotify</button>
+          <button type="button" data-preset="Prime" class="preset-btn px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 whitespace-nowrap">📦 Amazon Prime</button>
+          <button type="button" data-preset="YouTube" class="preset-btn px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 whitespace-nowrap">▶️ YouTube Premium</button>
+          <button type="button" data-preset="Canva" class="preset-btn px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 whitespace-nowrap">🎨 Canva Pro</button>
+          <button type="button" data-preset="Gym" class="preset-btn px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 whitespace-nowrap">🏋️ Gym / Cult.fit</button>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <form id="itemForm" class="p-6 pt-2 space-y-4">
+        <input type="hidden" id="itemId">
+
+        <!-- Service Name & Icon -->
+        <div class="grid grid-cols-4 gap-3">
+          <div class="col-span-3">
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Service Name *</label>
+            <input type="text" id="serviceName" required placeholder="e.g. Netflix, Audible, Coursera" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div class="col-span-1">
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Emoji</label>
+            <input type="text" id="serviceEmoji" maxlength="2" value="⚡" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-center text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <!-- Category Selector -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Service Category</label>
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <label class="flex items-center space-x-2 p-2 rounded-xl border border-slate-700 bg-slate-800 cursor-pointer hover:border-indigo-500 transition">
+              <input type="radio" name="itemCategory" value="web" checked class="text-indigo-600 focus:ring-indigo-500">
+              <span class="text-xs font-semibold text-emerald-300">🌐 Website / Domain</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 rounded-xl border border-slate-700 bg-slate-800 cursor-pointer hover:border-indigo-500 transition">
+              <input type="radio" name="itemCategory" value="accounting" class="text-indigo-600 focus:ring-indigo-500">
+              <span class="text-xs font-semibold text-cyan-300">📊 Accounting & GST</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 rounded-xl border border-slate-700 bg-slate-800 cursor-pointer hover:border-indigo-500 transition">
+              <input type="radio" name="itemCategory" value="work" class="text-indigo-600 focus:ring-indigo-500">
+              <span class="text-xs font-semibold text-indigo-300">💼 Office / SaaS Tool</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 rounded-xl border border-slate-700 bg-slate-800 cursor-pointer hover:border-indigo-500 transition">
+              <input type="radio" name="itemCategory" value="personal" class="text-indigo-600 focus:ring-indigo-500">
+              <span class="text-xs font-semibold text-slate-300">🍿 Personal / Media</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Type Selector (Trial vs Paid Subscription) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Tracking Type</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-700 bg-slate-800 cursor-pointer hover:border-indigo-500 transition">
+              <input type="radio" name="itemType" value="trial" checked class="text-indigo-600 focus:ring-indigo-500">
+              <div class="text-xs">
+                <span class="font-bold text-amber-400 block">🎁 Free Trial</span>
+                <span class="text-slate-400 text-[10px]">Cancel before charge</span>
+              </div>
+            </label>
+            <label class="flex items-center space-x-2 p-2.5 rounded-xl border border-slate-700 bg-slate-800 cursor-pointer hover:border-indigo-500 transition">
+              <input type="radio" name="itemType" value="recurring" class="text-indigo-600 focus:ring-indigo-500">
+              <div class="text-xs">
+                <span class="font-bold text-indigo-400 block">💳 Paid Subscription</span>
+                <span class="text-slate-400 text-[10px]">Ongoing monthly/yearly</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Cost & Billing Cycle -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Amount after Trial / Renewal</label>
+            <div class="relative">
+              <span id="currencySymbolPrefix" class="absolute left-3 top-2.5 text-sm text-slate-400">₹</span>
+              <input type="number" id="serviceCost" required min="0" step="any" placeholder="649" class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-7 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Billing Frequency</label>
+            <select id="billingCycle" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Date & Alert Notice -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Expiry / Renewal Date *</label>
+            <input type="date" id="expiryDate" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Alert Me</label>
+            <select id="alertLeadDays" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="1">1 Day Before</option>
+              <option value="2" selected>2 Days Before (Recommended)</option>
+              <option value="3">3 Days Before</option>
+              <option value="7">7 Days Before</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Official Cancellation URL or instructions -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Direct Cancel Webpage (Optional)</label>
+          <input type="url" id="cancelUrl" placeholder="https://www.netflix.com/youraccount" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <p class="text-[10px] text-slate-400 mt-1">We'll pre-fill standard cancel links for top services automatically.</p>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-2">
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition">
+            Save Radar Item
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CANCEL GUIDE MODAL -->
+  <div id="cancelGuideModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 overflow-hidden shadow-2xl relative">
+      <div class="flex items-center space-x-3 mb-4">
+        <span id="guideEmoji" class="text-3xl">🍿</span>
+        <div>
+          <h3 id="guideTitle" class="text-lg font-bold text-white">How to Cancel Netflix</h3>
+          <p class="text-xs text-rose-400 font-medium">Prevent upcoming debit</p>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/80 rounded-xl p-3.5 text-xs text-slate-300 space-y-2 mb-4 border border-slate-700">
+        <div class="font-semibold text-white">Cancellation Steps:</div>
+        <ol id="guideStepsList" class="list-decimal pl-4 space-y-1.5 text-slate-300">
+          <li>Log in to your account.</li>
+          <li>Go to Account Settings &gt; Membership.</li>
+          <li>Click 'Cancel Membership' and confirm.</li>
+        </ol>
+      </div>
+
+      <div class="space-y-2.5">
+        <a id="guideDirectLink" href="#" target="_blank" rel="noopener noreferrer" class="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl transition text-xs">
+          <span>Open Direct Cancellation Page</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+          </svg>
+        </a>
+
+        <button id="guideMarkCancelledBtn" class="w-full flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl transition text-xs">
+          <span>✅ I Have Cancelled It (Save Money)</span>
+        </button>
+
+        <button id="closeGuideModalBtn" class="w-full py-2 text-center text-xs text-slate-400 hover:text-slate-200 transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA / ADD TO PHONE GUIDE MODAL -->
+  <div id="pwaModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-2xl">📱</span>
+          <h3 class="text-base font-bold text-white">How to Install on Phone</h3>
+        </div>
+        <button id="closePwaModalBtn" class="text-slate-400 hover:text-white p-1">✕</button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-300">
+        <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+          <div class="font-bold text-emerald-400 mb-1 flex items-center space-x-1.5">
+            <span>🤖 On Android (Chrome / Brave):</span>
+          </div>
+          <ol class="list-decimal pl-4 space-y-1 text-slate-300">
+            <li>Tap the <strong>three dots (⋮)</strong> at the top right of your browser.</li>
+            <li>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
+            <li>SubRadar will appear on your phone home screen like any native APK app!</li>
+          </ol>
+        </div>
+
+        <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+          <div class="font-bold text-indigo-400 mb-1 flex items-center space-x-1.5">
+            <span>🍏 On iPhone (Safari):</span>
+          </div>
+          <ol class="list-decimal pl-4 space-y-1 text-slate-300">
+            <li>Tap the <strong>Share</strong> button (box with an arrow pointing up) at the bottom.</li>
+            <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
+            <li>Tap <strong>Add</strong> in the top right corner.</li>
+          </ol>
+        </div>
+      </div>
+
+      <button id="pwaGotItBtn" class="w-full mt-5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs transition">
+        Got It!
+      </button>
+    </div>
+  </div>
+
+  <!-- CONFETTI / CELEBRATION TOAST -->
+  <div id="toastNotification" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-slate-950 font-bold px-4 py-2.5 rounded-full shadow-2xl flex items-center space-x-2 transition-all transform translate-y-20 opacity-0 pointer-events-none text-xs">
+    <span id="toastIcon">🎉</span>
+    <span id="toastText">Great job! You saved money.</span>
+  </div>
+
+  <script>
+    // PRESET CATALOG WITH REAL CANCELLATION GUIDES
+    const PRESETS = {
+      // WEBSITE & DOMAIN RENEWALS
+      GoDaddy: {
+        name: "GoDaddy Domain (.com) Renewal",
+        emoji: "🌐",
+        category: "web",
+        cost: 1199,
+        billingCycle: "yearly",
+        type: "recurring",
+        cancelUrl: "https://account.godaddy.com/products",
+        steps: [
+          "Log in to GoDaddy Account at godaddy.com.",
+          "Under 'My Products', find your domain.",
+          "Check 'Auto-Renew' status to ensure renewal or cancel if unused."
+        ]
+      },
+      Hostinger: {
+        name: "Hostinger Web Hosting",
+        emoji: "🖥️",
+        category: "web",
+        cost: 3499,
+        billingCycle: "yearly",
+        type: "recurring",
+        cancelUrl: "https://hpanel.hostinger.com/billing",
+        steps: [
+          "Open Hostinger hPanel and go to 'Billing'.",
+          "Click 'Services' > your hosting plan.",
+          "Check renewal date or toggle off auto-renew if moving hosts."
+        ]
+      },
+      Shopify: {
+        name: "Shopify E-commerce Store",
+        emoji: "🛍️",
+        category: "web",
+        cost: 1999,
+        billingCycle: "monthly",
+        type: "trial",
+        cancelUrl: "https://admin.shopify.com/settings/plan",
+        steps: [
+          "Log in to Shopify Admin > 'Settings' (bottom-left).",
+          "Click 'Plan' > 'Deactivate store' or 'Cancel subscription'.",
+          "Confirm store pause/cancellation before 3-day/30-day trial charges."
+        ]
+      },
+      Namecheap: {
+        name: "Namecheap Domain & SSL",
+        emoji: "🔒",
+        category: "web",
+        cost: 950,
+        billingCycle: "yearly",
+        type: "recurring",
+        cancelUrl: "https://ap.www.namecheap.com/domains/domaincontrolpanel",
+        steps: [
+          "Log in to Namecheap Dashboard > 'Domain List'.",
+          "Click 'Manage' next to the domain.",
+          "Manage Auto-Renewal switch or renew manually."
+        ]
+      },
+      AWS: {
+        name: "AWS Cloud Server / Hosting",
+        emoji: "☁️",
+        category: "web",
+        cost: 2500,
+        billingCycle: "monthly",
+        type: "recurring",
+        cancelUrl: "https://console.aws.amazon.com/billing/home",
+        steps: [
+          "Go to AWS Billing Console (console.aws.amazon.com/billing).",
+          "Check 'Bills' and 'Cost Explorer' for active EC2/RDS instances.",
+          "Terminate unused instances or close AWS account to avoid massive debits."
+        ]
+      },
+
+      // ACCOUNTING & INVOICING SOFTWARE
+      ZohoBooks: {
+        name: "Zoho Books (Accounting & GST)",
+        emoji: "📊",
+        category: "accounting",
+        cost: 899,
+        billingCycle: "monthly",
+        type: "trial",
+        cancelUrl: "https://store.zoho.in/",
+        steps: [
+          "Go to Zoho Store (store.zoho.com / store.zoho.in).",
+          "Click 'Manage Subscription' next to Zoho Books.",
+          "Click 'Downgrade to Free' or 'Cancel Subscription'."
+        ]
+      },
+      Tally: {
+        name: "TallyPrime / Tally on Cloud",
+        emoji: "🧾",
+        category: "accounting",
+        cost: 1250,
+        billingCycle: "monthly",
+        type: "recurring",
+        cancelUrl: "https://tallysolutions.com/my-account",
+        steps: [
+          "Log in to Tally Solutions Customer Portal.",
+          "Go to 'Account & License Management' > 'TSS Renewal'.",
+          "Check TSS (Tally Software Services) validity date."
+        ]
+      },
+      QuickBooks: {
+        name: "QuickBooks Online (Intuit)",
+        emoji: "📗",
+        category: "accounting",
+        cost: 1450,
+        billingCycle: "monthly",
+        type: "trial",
+        cancelUrl: "https://qbo.intuit.com/app/account",
+        steps: [
+          "Click the Gear icon in QuickBooks Online > 'Account and Settings'.",
+          "Select 'Billing & Subscription'.",
+          "In the QuickBooks section, click 'Cancel subscription'."
+        ]
+      },
+      Vyapar: {
+        name: "Vyapar / myBillBook Billing",
+        emoji: "📱",
+        category: "accounting",
+        cost: 2399,
+        billingCycle: "yearly",
+        type: "recurring",
+        cancelUrl: "https://vyaparapp.in",
+        steps: [
+          "Open Vyapar/myBillBook app > Settings > Subscription.",
+          "Check annual license expiry date.",
+          "Turn off auto-debit on Google Play or UPI if renewing manually."
+        ]
+      },
+      Xero: {
+        name: "Xero Cloud Accounting",
+        emoji: "📘",
+        category: "accounting",
+        cost: 2100,
+        billingCycle: "monthly",
+        type: "trial",
+        cancelUrl: "https://go.xero.com/Billing/Subscription",
+        steps: [
+          "Click your organisation name > 'Subscription and billing'.",
+          "Click 'Manage Plan' > 'Cancel subscription'.",
+          "Provide cancellation notice before next monthly debit."
+        ]
+      },
+      LinkedIn: {
+        name: "LinkedIn Premium",
+        emoji: "💼",
+        category: "work",
+        cost: 1799,
+        type: "trial",
+        cancelUrl: "https://www.linkedin.com/premium/cancel",
+        steps: [
+          "Click your profile icon ('Me') at the top right of LinkedIn.",
+          "Select 'Premium features' or 'Settings & Privacy' > 'Subscriptions'.",
+          "Click 'Manage Subscription' > 'Cancel subscription' and confirm."
+        ]
+      },
+      Adobe: {
+        name: "Adobe Creative Cloud",
+        emoji: "🎨",
+        category: "work",
+        cost: 4230,
+        type: "trial",
+        cancelUrl: "https://account.adobe.com/plans",
+        steps: [
+          "Log in to account.adobe.com/plans.",
+          "Click 'Manage plan' for your Creative Cloud subscription.",
+          "Select 'Cancel your plan' and follow prompts to avoid cancellation fee."
+        ]
+      },
+      GoogleWorkspace: {
+        name: "Google Workspace / One",
+        emoji: "🏢",
+        category: "work",
+        cost: 1360,
+        type: "trial",
+        cancelUrl: "https://admin.google.com/ac/billing/subscriptions",
+        steps: [
+          "Open Google Admin Console (admin.google.com).",
+          "Go to 'Billing' > 'Subscriptions'.",
+          "Click your subscription > 'More' > 'Cancel Subscription'."
+        ]
+      },
+      GitHubCopilot: {
+        name: "GitHub Copilot",
+        emoji: "💻",
+        category: "work",
+        cost: 850,
+        type: "trial",
+        cancelUrl: "https://github.com/settings/copilot",
+        steps: [
+          "Go to GitHub Settings > Copilot.",
+          "Click 'Manage subscription' or gear icon.",
+          "Click 'Cancel Copilot' before the 30-day trial renews."
+        ]
+      },
+      Zoom: {
+        name: "Zoom Pro Meetings",
+        emoji: "📹",
+        category: "work",
+        cost: 1300,
+        type: "recurring",
+        cancelUrl: "https://zoom.us/billing",
+        steps: [
+          "Sign in to the Zoom web portal (zoom.us/billing).",
+          "In navigation, click 'Account Management' > 'Billing'.",
+          "Under Current Plans, click 'Cancel Subscription'."
+        ]
+      },
+      Notion: {
+        name: "Notion Plus / AI",
+        emoji: "📝",
+        category: "work",
+        cost: 800,
+        type: "trial",
+        cancelUrl: "https://www.notion.so/settings",
+        steps: [
+          "In Notion, click 'Settings & members' in the sidebar.",
+          "Click 'Billing' or 'Plans'.",
+          "Click 'Cancel plan' or downgrade to Free tier."
+        ]
+      },
+      Slack: {
+        name: "Slack Pro Workspace",
+        emoji: "💬",
+        category: "work",
+        cost: 650,
+        type: "recurring",
+        cancelUrl: "https://slack.com/admin/billing",
+        steps: [
+          "Go to your Workspace settings > Billing.",
+          "Select 'Overview' or 'Modify Plan'.",
+          "Click 'Cancel subscription' to revert to free Slack."
+        ]
+      },
+      Microsoft365: {
+        name: "Microsoft 365 Business/Personal",
+        emoji: "📊",
+        category: "work",
+        cost: 619,
+        type: "trial",
+        cancelUrl: "https://account.microsoft.com/services",
+        steps: [
+          "Go to account.microsoft.com/services.",
+          "Locate Microsoft 365 and click 'Manage'.",
+          "Select 'Cancel subscription' or turn off recurring billing."
+        ]
+      },
+      Netflix: {
+        name: "Netflix",
+        emoji: "🍿",
+        category: "personal",
+        cost: 649,
+        type: "trial",
+        cancelUrl: "https://www.netflix.com/youraccount",
+        steps: [
+          "Visit Netflix Account page at netflix.com/youraccount.",
+          "Under 'Membership & Billing', click 'Cancel Membership'.",
+          "Click 'Finish Cancellation' to stop all future debits."
+        ]
+      },
+      Spotify: {
+        name: "Spotify Premium",
+        emoji: "🎵",
+        cost: 119,
+        type: "trial",
+        cancelUrl: "https://www.spotify.com/account/subscription/",
+        steps: [
+          "Log in to spotify.com/account.",
+          "Under 'Your plan', click 'Change plan'.",
+          "Scroll down to 'Cancel Spotify' and click 'Cancel Premium'."
+        ]
+      },
+      ChatGPT: {
+        name: "ChatGPT Plus",
+        emoji: "🤖",
+        cost: 1999,
+        type: "recurring",
+        cancelUrl: "https://chatgpt.com/#settings/Account",
+        steps: [
+          "Open ChatGPT and click on your profile avatar (bottom-left).",
+          "Select 'Settings' > 'Account' > 'Manage my subscription'.",
+          "On the Stripe portal, click 'Cancel Plan'."
+        ]
+      },
+      Prime: {
+        name: "Amazon Prime",
+        emoji: "📦",
+        cost: 299,
+        type: "trial",
+        cancelUrl: "https://www.amazon.in/mc/manage",
+        steps: [
+          "Go to Amazon 'Manage Prime Membership'.",
+          "Click 'Manage Membership' > 'End Membership'.",
+          "Confirm on the subsequent warning screen."
+        ]
+      },
+      YouTube: {
+        name: "YouTube Premium",
+        emoji: "▶️",
+        cost: 149,
+        type: "trial",
+        cancelUrl: "https://www.youtube.com/paid_memberships",
+        steps: [
+          "Go to youtube.com/paid_memberships.",
+          "Click 'Manage membership' next to YouTube Premium.",
+          "Click 'Deactivate' and confirm cancellation."
+        ]
+      },
+      Canva: {
+        name: "Canva Pro",
+        emoji: "🎨",
+        cost: 499,
+        type: "trial",
+        cancelUrl: "https://www.canva.com/settings/billing-and-teams",
+        steps: [
+          "Click your gear icon (Settings) on Canva.",
+          "Navigate to 'Billing & Teams'.",
+          "Click 'Cancel trial / Cancel subscription' under your plan."
+        ]
+      },
+      Gym: {
+        name: "Cult.fit / Gym Pass",
+        emoji: "🏋️",
+        cost: 1500,
+        type: "recurring",
+        cancelUrl: "https://www.cult.fit/me",
+        steps: [
+          "Open your Gym / Cult app profile.",
+          "Navigate to Memberships > Active Pack.",
+          "Turn off Auto-Renew or request pause/cancellation."
+        ]
+      }
+    };
+
+    // CURRENCY SYMBOLS & RATES (Relative to INR)
+    const CURRENCIES = {
+      INR: { symbol: "₹", rate: 1 },
+      USD: { symbol: "$", rate: 0.012 },
+      EUR: { symbol: "€", rate: 0.011 },
+      GBP: { symbol: "£", rate: 0.0094 }
+    };
+
+    // INITIAL DEMO DATA
+    function getTomorrow(daysAhead) {
+      const d = new Date();
+      d.setDate(d.getDate() + daysAhead);
+      return d.toISOString().split('T')[0];
+    }
+
+    const DEMO_ITEMS = [
+      // 🌐 1. WEBSITE & DOMAIN SERVICES
+      {
+        id: "demo-1",
+        name: "GoDaddy Domain Renewal (.com)",
+        emoji: "🌐",
+        category: "web",
+        type: "recurring",
+        cost: 1199,
+        billingCycle: "yearly",
+        expiryDate: getTomorrow(1), // Urgent! Expires tomorrow!
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.GoDaddy.cancelUrl,
+        status: "active",
+        steps: PRESETS.GoDaddy.steps
+      },
+      {
+        id: "demo-2",
+        name: "Hostinger Cloud Web Hosting",
+        emoji: "🖥️",
+        category: "web",
+        type: "recurring",
+        cost: 3499,
+        billingCycle: "yearly",
+        expiryDate: getTomorrow(15),
+        alertLeadDays: 7,
+        cancelUrl: PRESETS.Hostinger.cancelUrl,
+        status: "active",
+        steps: PRESETS.Hostinger.steps
+      },
+      {
+        id: "demo-3",
+        name: "Shopify E-commerce Store",
+        emoji: "🛍️",
+        category: "web",
+        type: "trial",
+        cost: 1999,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(4),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Shopify.cancelUrl,
+        status: "active",
+        steps: PRESETS.Shopify.steps
+      },
+      {
+        id: "demo-4",
+        name: "Namecheap Domain & SSL Security",
+        emoji: "🔒",
+        category: "web",
+        type: "recurring",
+        cost: 950,
+        billingCycle: "yearly",
+        expiryDate: getTomorrow(28),
+        alertLeadDays: 7,
+        cancelUrl: PRESETS.Namecheap.cancelUrl,
+        status: "active",
+        steps: PRESETS.Namecheap.steps
+      },
+      {
+        id: "demo-5",
+        name: "AWS Cloud Server / Hosting",
+        emoji: "☁️",
+        category: "web",
+        type: "recurring",
+        cost: 2500,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(10),
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.AWS.cancelUrl,
+        status: "active",
+        steps: PRESETS.AWS.steps
+      },
+
+      // 📊 2. ACCOUNTING & GST SOFTWARE
+      {
+        id: "demo-6",
+        name: "Zoho Books (Accounting & GST)",
+        emoji: "📊",
+        category: "accounting",
+        type: "trial",
+        cost: 899,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(2), // Urgent! 48 hours left!
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.ZohoBooks.cancelUrl,
+        status: "active",
+        steps: PRESETS.ZohoBooks.steps
+      },
+      {
+        id: "demo-7",
+        name: "TallyPrime / Tally on Cloud",
+        emoji: "🧾",
+        category: "accounting",
+        type: "recurring",
+        cost: 1250,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(21),
+        alertLeadDays: 7,
+        cancelUrl: PRESETS.Tally.cancelUrl,
+        status: "active",
+        steps: PRESETS.Tally.steps
+      },
+      {
+        id: "demo-8",
+        name: "QuickBooks Online (Intuit)",
+        emoji: "📗",
+        category: "accounting",
+        type: "trial",
+        cost: 1450,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(8),
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.QuickBooks.cancelUrl,
+        status: "active",
+        steps: PRESETS.QuickBooks.steps
+      },
+      {
+        id: "demo-9",
+        name: "Vyapar / myBillBook Billing",
+        emoji: "📱",
+        category: "accounting",
+        type: "recurring",
+        cost: 2399,
+        billingCycle: "yearly",
+        expiryDate: getTomorrow(35),
+        alertLeadDays: 7,
+        cancelUrl: PRESETS.Vyapar.cancelUrl,
+        status: "active",
+        steps: PRESETS.Vyapar.steps
+      },
+      {
+        id: "demo-10",
+        name: "Xero Cloud Accounting",
+        emoji: "📘",
+        category: "accounting",
+        type: "trial",
+        cost: 2100,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(13),
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.Xero.cancelUrl,
+        status: "active",
+        steps: PRESETS.Xero.steps
+      },
+
+      // 💼 3. OFFICE & WORK SOFTWARE
+      {
+        id: "demo-11",
+        name: "LinkedIn Premium Career Trial",
+        emoji: "💼",
+        category: "work",
+        type: "trial",
+        cost: 1799,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(2), // Urgent! 48h left!
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.LinkedIn.cancelUrl,
+        status: "active",
+        steps: PRESETS.LinkedIn.steps
+      },
+      {
+        id: "demo-12",
+        name: "Adobe Creative Cloud Pro",
+        emoji: "🎨",
+        category: "work",
+        type: "trial",
+        cost: 4230,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(-1),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Adobe.cancelUrl,
+        status: "cancelled", // Successfully saved!
+        steps: PRESETS.Adobe.steps
+      },
+      {
+        id: "demo-13",
+        name: "ChatGPT Plus (OpenAI)",
+        emoji: "🤖",
+        category: "work",
+        type: "recurring",
+        cost: 1999,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(6),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.ChatGPT.cancelUrl,
+        status: "active",
+        steps: PRESETS.ChatGPT.steps
+      },
+      {
+        id: "demo-14",
+        name: "Google Workspace Business Email",
+        emoji: "🏢",
+        category: "work",
+        type: "trial",
+        cost: 1360,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(-2),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.GoogleWorkspace.cancelUrl,
+        status: "cancelled", // Successfully saved!
+        steps: PRESETS.GoogleWorkspace.steps
+      },
+      {
+        id: "demo-15",
+        name: "GitHub Copilot AI",
+        emoji: "💻",
+        category: "work",
+        type: "trial",
+        cost: 850,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(11),
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.GitHubCopilot.cancelUrl,
+        status: "active",
+        steps: PRESETS.GitHubCopilot.steps
+      },
+      {
+        id: "demo-16",
+        name: "Zoom Pro Meetings",
+        emoji: "📹",
+        category: "work",
+        type: "recurring",
+        cost: 1300,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(7),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Zoom.cancelUrl,
+        status: "active",
+        steps: PRESETS.Zoom.steps
+      },
+      {
+        id: "demo-17",
+        name: "Notion Plus / Notion AI",
+        emoji: "📝",
+        category: "work",
+        type: "trial",
+        cost: 800,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(9),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Notion.cancelUrl,
+        status: "active",
+        steps: PRESETS.Notion.steps
+      },
+      {
+        id: "demo-18",
+        name: "Slack Pro Workspace",
+        emoji: "💬",
+        category: "work",
+        type: "recurring",
+        cost: 650,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(22),
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.Slack.cancelUrl,
+        status: "active",
+        steps: PRESETS.Slack.steps
+      },
+      {
+        id: "demo-19",
+        name: "Microsoft 365 Business Suite",
+        emoji: "📊",
+        category: "work",
+        type: "trial",
+        cost: 619,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(16),
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.Microsoft365.cancelUrl,
+        status: "active",
+        steps: PRESETS.Microsoft365.steps
+      },
+
+      // 🍿 4. PERSONAL & ENTERTAINMENT
+      {
+        id: "demo-20",
+        name: "Netflix 4K Ultra HD",
+        emoji: "🍿",
+        category: "personal",
+        type: "trial",
+        cost: 649,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(1), // Urgent! Expires tomorrow!
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Netflix.cancelUrl,
+        status: "active",
+        steps: PRESETS.Netflix.steps
+      },
+      {
+        id: "demo-21",
+        name: "Spotify Premium Individual",
+        emoji: "🎵",
+        category: "personal",
+        type: "trial",
+        cost: 119,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(18),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Spotify.cancelUrl,
+        status: "active",
+        steps: PRESETS.Spotify.steps
+      },
+      {
+        id: "demo-22",
+        name: "Amazon Prime Video & Delivery",
+        emoji: "📦",
+        category: "personal",
+        type: "trial",
+        cost: 299,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(20),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Prime.cancelUrl,
+        status: "active",
+        steps: PRESETS.Prime.steps
+      },
+      {
+        id: "demo-23",
+        name: "YouTube Premium Ad-Free",
+        emoji: "▶️",
+        category: "personal",
+        type: "trial",
+        cost: 149,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(14),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.YouTube.cancelUrl,
+        status: "active",
+        steps: PRESETS.YouTube.steps
+      },
+      {
+        id: "demo-24",
+        name: "Canva Pro Graphics",
+        emoji: "🎨",
+        category: "personal",
+        type: "trial",
+        cost: 499,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(-3),
+        alertLeadDays: 2,
+        cancelUrl: PRESETS.Canva.cancelUrl,
+        status: "cancelled", // Successfully saved!
+        steps: PRESETS.Canva.steps
+      },
+      {
+        id: "demo-25",
+        name: "Cult.fit / Gym Membership",
+        emoji: "🏋️",
+        category: "personal",
+        type: "recurring",
+        cost: 1500,
+        billingCycle: "monthly",
+        expiryDate: getTomorrow(11),
+        alertLeadDays: 3,
+        cancelUrl: PRESETS.Gym.cancelUrl,
+        status: "active",
+        steps: PRESETS.Gym.steps
+      }
+    ];
+
+    // STATE
+    let currentCurrency = "INR";
+    let activeFilter = "all";
+    let searchQuery = "";
+    let items = [];
+
+    // STORAGE VERSION 3 (Forces immediate refresh to display new Accounting & Domain renewals)
+    const STORAGE_KEY = "subradar_items_v4";
+    const CURRENCY_KEY = "subradar_currency_v3";
+
+    function loadData() {
+      try {
+        // Clear out old obsolete v1/v2 demo cache if present
+        if (localStorage.getItem("subradar_items_v1") && !localStorage.getItem(STORAGE_KEY)) {
+          localStorage.removeItem("subradar_items_v1");
+        }
+        if (localStorage.getItem("subradar_items_v2") && !localStorage.getItem(STORAGE_KEY)) {
+          localStorage.removeItem("subradar_items_v2");
+        }
+
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          items = JSON.parse(stored);
+        } else {
+          items = JSON.parse(JSON.stringify(DEMO_ITEMS));
+          saveData();
+        }
+        const storedCurr = localStorage.getItem(CURRENCY_KEY);
+        if (storedCurr && CURRENCIES[storedCurr]) {
+          currentCurrency = storedCurr;
+          document.getElementById("currencySelector").value = currentCurrency;
+        }
+      } catch (e) {
+        console.warn("LocalStorage access failed, using in-memory state", e);
+        items = JSON.parse(JSON.stringify(DEMO_ITEMS));
+      }
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        localStorage.setItem(CURRENCY_KEY, currentCurrency);
+      } catch (e) {
+        console.warn("LocalStorage write failed", e);
+      }
+    }
+
+    // UTILITIES
+    function formatMoney(amountInINR) {
+      const info = CURRENCIES[currentCurrency] || CURRENCIES.INR;
+      const converted = amountInINR * info.rate;
+      if (currentCurrency === "INR") {
+        return info.symbol + Math.round(converted).toLocaleString('en-IN');
+      }
+      return info.symbol + converted.toFixed(2);
+    }
+
+    function getDaysLeft(dateString) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const target = new Date(dateString);
+      target.setHours(0, 0, 0, 0);
+      const diffTime = target - today;
+      return Math.round(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    function showToast(text, icon = "🎉") {
+      const toast = document.getElementById("toastNotification");
+      document.getElementById("toastText").textContent = text;
+      document.getElementById("toastIcon").textContent = icon;
+      toast.classList.remove("translate-y-20", "opacity-0", "pointer-events-none");
+      setTimeout(() => {
+        toast.classList.add("translate-y-20", "opacity-0", "pointer-events-none");
+      }, 3000);
+    }
+
+    // RENDER FUNCTIONS
+    function render() {
+      // 1. Calculate Metrics
+      let urgentCount = 0;
+      let monthlyBurn = 0;
+      let totalSaved = 0;
+
+      let countAll = 0;
+      let countUrgent = 0;
+      let countWeb = 0;
+      let countAccounting = 0;
+      let countWork = 0;
+      let countPersonal = 0;
+      let countTrials = 0;
+      let countPaid = 0;
+      let countCancelled = 0;
+
+      items.forEach(item => {
+        countAll++;
+        const daysLeft = getDaysLeft(item.expiryDate);
+
+        if (item.category === "web") countWeb++;
+        if (item.category === "accounting") countAccounting++;
+        if (item.category === "work") countWork++;
+        if (item.category === "personal") countPersonal++;
+
+        if (item.status === "cancelled") {
+          countCancelled++;
+          totalSaved += Number(item.cost || 0);
+        } else {
+          // Active
+          if (item.type === "recurring") {
+            countPaid++;
+            monthlyBurn += Number(item.cost || 0);
+          } else {
+            countTrials++;
+          }
+
+          if (daysLeft >= 0 && daysLeft <= (item.alertLeadDays || 2)) {
+            urgentCount++;
+            countUrgent++;
+          }
+        }
+      });
+
+      // Update counters in DOM
+      document.getElementById("urgentCountDisplay").textContent = urgentCount;
+      document.getElementById("monthlyBurnDisplay").textContent = formatMoney(monthlyBurn);
+      document.getElementById("moneySavedDisplay").textContent = formatMoney(totalSaved);
+
+      document.getElementById("countAll").textContent = countAll;
+      document.getElementById("countUrgent").textContent = countUrgent;
+      if (document.getElementById("countWeb")) document.getElementById("countWeb").textContent = countWeb;
+      if (document.getElementById("countAccounting")) document.getElementById("countAccounting").textContent = countAccounting;
+      if (document.getElementById("countWork")) document.getElementById("countWork").textContent = countWork;
+      if (document.getElementById("countPersonal")) document.getElementById("countPersonal").textContent = countPersonal;
+      document.getElementById("countTrials").textContent = countTrials;
+      if (document.getElementById("countPaid")) document.getElementById("countPaid").textContent = countPaid;
+      document.getElementById("countCancelled").textContent = countCancelled;
+
+      // Currency prefix for modal input
+      document.getElementById("currencySymbolPrefix").textContent = CURRENCIES[currentCurrency].symbol;
+
+      // 2. Filter & Search items
+      const container = document.getElementById("itemsListContainer");
+      container.innerHTML = "";
+
+      const filtered = items.filter(item => {
+        // Search
+        if (searchQuery.trim() !== "") {
+          const match = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+          if (!match) return false;
+        }
+
+        const daysLeft = getDaysLeft(item.expiryDate);
+
+        // Filter tab
+        if (activeFilter === "urgent") {
+          return item.status !== "cancelled" && daysLeft >= 0 && daysLeft <= (item.alertLeadDays || 2);
+        }
+        if (activeFilter === "web") {
+          return item.category === "web";
+        }
+        if (activeFilter === "accounting") {
+          return item.category === "accounting";
+        }
+        if (activeFilter === "work") {
+          return item.category === "work";
+        }
+        if (activeFilter === "personal") {
+          return item.category === "personal";
+        }
+        if (activeFilter === "trials") {
+          return item.type === "trial" && item.status !== "cancelled";
+        }
+        if (activeFilter === "recurring") {
+          return item.type === "recurring" && item.status !== "cancelled";
+        }
+        if (activeFilter === "cancelled") {
+          return item.status === "cancelled";
+        }
+        return true; // "all"
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="glass-card rounded-2xl p-8 text-center text-slate-400 space-y-2">
+            <div class="text-3xl">🛡️</div>
+            <p class="font-medium text-slate-300">No items match this filter.</p>
+            <p class="text-xs">Add a new trial or subscription to start tracking!</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Sort: Urgent active first, then soonest expiry, then cancelled at end
+      filtered.sort((a, b) => {
+        if (a.status === "cancelled" && b.status !== "cancelled") return 1;
+        if (a.status !== "cancelled" && b.status === "cancelled") return -1;
+        return getDaysLeft(a.expiryDate) - getDaysLeft(b.expiryDate);
+      });
+
+      filtered.forEach(item => {
+        const daysLeft = getDaysLeft(item.expiryDate);
+        const isUrgent = item.status !== "cancelled" && daysLeft >= 0 && daysLeft <= (item.alertLeadDays || 2);
+        const isExpired = item.status !== "cancelled" && daysLeft < 0;
+        const isCancelled = item.status === "cancelled";
+
+        let badgeHtml = "";
+        let cardStyle = "glass-card";
+
+        if (isCancelled) {
+          badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🏆 Cancelled & Saved</span>`;
+        } else if (isUrgent) {
+          cardStyle = "glass-card-urgent";
+          badgeHtml = `
+            <span class="flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-400 pulse-dot"></span>
+              <span>⚠️ Action Required: ${daysLeft === 0 ? "Expires TODAY!" : daysLeft === 1 ? "Expires TOMORROW!" : `Expires in ${daysLeft} days`}</span>
+            </span>
+          `;
+        } else if (isExpired) {
+          badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-300">Passed Expiry Date</span>`;
+        } else {
+          badgeHtml = `
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+              ⏳ ${daysLeft} days remaining
+            </span>
+          `;
+        }
+
+        const typeBadge = item.type === "trial" 
+          ? `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">Free Trial</span>`
+          : `<span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-semibold">Subscription</span>`;
+
+        let categoryBadge = "";
+        if (item.category === "web") {
+          categoryBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">🌐 Domain / Web</span>`;
+        } else if (item.category === "accounting") {
+          categoryBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-medium">📊 Accounting / GST</span>`;
+        } else if (item.category === "work") {
+          categoryBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-medium">💼 Office SaaS</span>`;
+        } else {
+          categoryBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-slate-700/50 text-slate-300 border border-slate-600/40 font-medium">🍿 Personal</span>`;
+        }
+
+        const el = document.createElement("div");
+        el.className = `${cardStyle} rounded-2xl p-4 transition-all duration-200 hover:border-slate-600/80`;
+        el.innerHTML = `
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            
+            <!-- Left Info -->
+            <div class="flex items-start space-x-3.5">
+              <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl flex-shrink-0">
+                ${item.emoji || "⚡"}
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <h4 class="font-bold text-white text-base ${isCancelled ? 'line-through text-slate-400' : ''}">${item.name}</h4>
+                  ${categoryBadge}
+                  ${typeBadge}
+                </div>
+                <div class="flex items-center space-x-2 text-xs text-slate-400">
+                  <span>${formatMoney(item.cost)} / ${item.billingCycle || 'month'}</span>
+                  <span>•</span>
+                  <span>Target Date: <strong class="text-slate-200">${item.expiryDate}</strong></span>
+                </div>
+                <div>${badgeHtml}</div>
+              </div>
+            </div>
+
+            <!-- Right Actions -->
+            <div class="flex items-center space-x-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
+              ${!isCancelled ? `
+                <button data-action="guide" data-id="${item.id}" class="flex-1 sm:flex-initial flex items-center justify-center space-x-1 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition">
+                  <span>❌ Cancel Guide</span>
+                </button>
+                <button data-action="mark-cancel" data-id="${item.id}" class="flex-1 sm:flex-initial flex items-center justify-center space-x-1 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition" title="Mark as cancelled and save money">
+                  <span>✅ Saved</span>
+                </button>
+              ` : `
+                <button data-action="reopen" data-id="${item.id}" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition">
+                  ↺ Reactivate
+                </button>
+              `}
+              <button data-action="edit" data-id="${item.id}" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Edit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                </svg>
+              </button>
+              <button data-action="delete" data-id="${item.id}" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition" title="Delete">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            </div>
+
+          </div>
+        `;
+        container.appendChild(el);
+      });
+    }
+
+    // MODAL HANDLERS
+    function openModal(editItem = null) {
+      const modal = document.getElementById("itemModal");
+      const form = document.getElementById("itemForm");
+      form.reset();
+
+      if (editItem) {
+        document.getElementById("modalTitle").textContent = "Edit Tracked Item";
+        document.getElementById("itemId").value = editItem.id;
+        document.getElementById("serviceName").value = editItem.name;
+        document.getElementById("serviceEmoji").value = editItem.emoji || "⚡";
+        document.getElementById("serviceCost").value = editItem.cost;
+        document.getElementById("billingCycle").value = editItem.billingCycle || "monthly";
+        document.getElementById("expiryDate").value = editItem.expiryDate;
+        document.getElementById("alertLeadDays").value = editItem.alertLeadDays || 2;
+        document.getElementById("cancelUrl").value = editItem.cancelUrl || "";
+        const radio = form.querySelector(`input[name="itemType"][value="${editItem.type}"]`);
+        if (radio) radio.checked = true;
+        const catRadio = form.querySelector(`input[name="itemCategory"][value="${editItem.category || 'web'}"]`);
+        if (catRadio) catRadio.checked = true;
+      } else {
+        document.getElementById("modalTitle").textContent = "Track New Trial or Service";
+        document.getElementById("itemId").value = "";
+        document.getElementById("expiryDate").value = getTomorrow(7);
+        form.querySelector('input[name="itemType"][value="recurring"]').checked = true;
+        form.querySelector('input[name="itemCategory"][value="web"]').checked = true;
+      }
+
+      modal.classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("itemModal").classList.add("hidden");
+    }
+
+    // CANCEL GUIDE MODAL
+    let currentGuideItemId = null;
+    function openCancelGuide(item) {
+      currentGuideItemId = item.id;
+      const modal = document.getElementById("cancelGuideModal");
+      document.getElementById("guideEmoji").textContent = item.emoji || "⚡";
+      document.getElementById("guideTitle").textContent = `How to Cancel ${item.name}`;
+
+      const linkEl = document.getElementById("guideDirectLink");
+      if (item.cancelUrl && item.cancelUrl.startsWith("http")) {
+        linkEl.href = item.cancelUrl;
+        linkEl.classList.remove("hidden");
+      } else {
+        linkEl.classList.add("hidden");
+      }
+
+      const list = document.getElementById("guideStepsList");
+      list.innerHTML = "";
+      const steps = item.steps && item.steps.length > 0 ? item.steps : [
+        `Visit ${item.name} website or mobile app settings.`,
+        "Look for 'Subscriptions', 'Billing', or 'Membership'.",
+        "Click 'Cancel' or 'Turn Off Auto-Renew' before the expiry date."
+      ];
+      steps.forEach(s => {
+        const li = document.createElement("li");
+        li.textContent = s;
+        list.appendChild(li);
+      });
+
+      modal.classList.remove("hidden");
+    }
+
+    function closeCancelGuide() {
+      document.getElementById("cancelGuideModal").classList.add("hidden");
+    }
+
+    // ATTACH EVENT LISTENERS
+    window.addEventListener("DOMContentLoaded", () => {
+      loadData();
+      render();
+
+      // Currency change
+      document.getElementById("currencySelector").addEventListener("change", (e) => {
+        currentCurrency = e.target.value;
+        saveData();
+        render();
+        showToast(`Currency switched to ${currentCurrency}`, "💱");
+      });
+
+      // Filter tabs
+      document.querySelectorAll(".filter-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".filter-tab").forEach(t => {
+            t.classList.remove("bg-indigo-600", "text-white");
+            t.classList.add("bg-slate-800", "text-slate-300");
+          });
+          tab.classList.remove("bg-slate-800", "text-slate-300");
+          tab.classList.add("bg-indigo-600", "text-white");
+          activeFilter = tab.getAttribute("data-filter");
+          render();
+        });
+      });
+
+      // Search input
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        render();
+      });
+
+      // Add Modal buttons
+      document.getElementById("openAddModalBtn").addEventListener("click", () => openModal());
+      document.getElementById("closeModalBtn").addEventListener("click", closeModal);
+
+      // Preset Category Tabs (Web, Accounting, Work, Personal)
+      document.querySelectorAll(".preset-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const target = btn.getAttribute("data-tab");
+          document.querySelectorAll(".preset-tab-btn").forEach(b => {
+            b.className = "preset-tab-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white font-medium whitespace-nowrap";
+          });
+          btn.className = "preset-tab-btn px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium whitespace-nowrap";
+
+          document.querySelectorAll(".preset-cat-container").forEach(c => c.classList.add("hidden"));
+          const activeContainer = document.getElementById(`presets_${target}`);
+          if (activeContainer) activeContainer.classList.remove("hidden");
+        });
+      });
+
+      // Presets in Modal
+      document.querySelectorAll(".preset-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const key = btn.getAttribute("data-preset");
+          const preset = PRESETS[key];
+          if (preset) {
+            document.getElementById("serviceName").value = preset.name;
+            document.getElementById("serviceEmoji").value = preset.emoji;
+            document.getElementById("serviceCost").value = preset.cost;
+            document.getElementById("cancelUrl").value = preset.cancelUrl;
+            const radio = document.querySelector(`input[name="itemType"][value="${preset.type}"]`);
+            if (radio) radio.checked = true;
+            const catRadio = document.querySelector(`input[name="itemCategory"][value="${preset.category || 'work'}"]`);
+            if (catRadio) catRadio.checked = true;
+          }
+        });
+      });
+
+      // Form submit
+      document.getElementById("itemForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const id = document.getElementById("itemId").value;
+        const name = document.getElementById("serviceName").value.trim();
+        const emoji = document.getElementById("serviceEmoji").value.trim() || "⚡";
+        const cost = parseFloat(document.getElementById("serviceCost").value) || 0;
+        const billingCycle = document.getElementById("billingCycle").value;
+        const expiryDate = document.getElementById("expiryDate").value;
+        const alertLeadDays = parseInt(document.getElementById("alertLeadDays").value, 10);
+        const cancelUrl = document.getElementById("cancelUrl").value.trim();
+        const type = document.querySelector('input[name="itemType"]:checked').value;
+        const category = document.querySelector('input[name="itemCategory"]:checked').value;
+
+        // Auto-fetch preset steps if available
+        let steps = null;
+        for (const k in PRESETS) {
+          if (name.toLowerCase().includes(k.toLowerCase())) {
+            steps = PRESETS[k].steps;
+            break;
+          }
+        }
+
+        if (id) {
+          // Edit
+          const idx = items.findIndex(it => it.id === id);
+          if (idx !== -1) {
+            items[idx] = {
+              ...items[idx],
+              name, emoji, cost, billingCycle, expiryDate, alertLeadDays, cancelUrl, type, category,
+              steps: steps || items[idx].steps
+            };
+          }
+          showToast(`Updated "${name}"`, "✏️");
+        } else {
+          // New
+          const newItem = {
+            id: "sub-" + Date.now(),
+            name, emoji, cost, billingCycle, expiryDate, alertLeadDays, cancelUrl, type, category,
+            status: "active",
+            steps: steps || []
+          };
+          items.push(newItem);
+          showToast(`Added "${name}" to Radar!`, "🚀");
+        }
+
+        saveData();
+        closeModal();
+        render();
+      });
+
+      // Item List Action Delegation (Guide, Mark Saved, Edit, Delete)
+      document.getElementById("itemsListContainer").addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        const action = btn.getAttribute("data-action");
+        const id = btn.getAttribute("data-id");
+        if (!action || !id) return;
+
+        const item = items.find(it => it.id === id);
+        if (!item) return;
+
+        if (action === "guide") {
+          openCancelGuide(item);
+        } else if (action === "mark-cancel") {
+          item.status = "cancelled";
+          saveData();
+          render();
+          showToast(`Saved ${formatMoney(item.cost)} by cancelling ${item.name}!`, "🎉");
+        } else if (action === "reopen") {
+          item.status = "active";
+          saveData();
+          render();
+          showToast(`Reactivated ${item.name}`, "↺");
+        } else if (action === "edit") {
+          openModal(item);
+        } else if (action === "delete") {
+          items = items.filter(it => it.id !== id);
+          saveData();
+          render();
+          showToast(`Removed from radar`, "🗑️");
+        }
+      });
+
+      // Guide Modal actions
+      document.getElementById("closeGuideModalBtn").addEventListener("click", closeCancelGuide);
+      document.getElementById("guideMarkCancelledBtn").addEventListener("click", () => {
+        if (currentGuideItemId) {
+          const item = items.find(it => it.id === currentGuideItemId);
+          if (item) {
+            item.status = "cancelled";
+            saveData();
+            render();
+            showToast(`Saved ${formatMoney(item.cost)}! Trial cancelled.`, "🎉");
+          }
+        }
+        closeCancelGuide();
+      });
+
+      // PWA instructions Modal
+      document.getElementById("pwaHelpBtn").addEventListener("click", () => {
+        document.getElementById("pwaModal").classList.remove("hidden");
+      });
+      document.getElementById("closePwaModalBtn").addEventListener("click", () => {
+        document.getElementById("pwaModal").classList.add("hidden");
+      });
+      document.getElementById("pwaGotItBtn").addEventListener("click", () => {
+        document.getElementById("pwaModal").classList.add("hidden");
+      });
+
+      // Reset Demo data
+      document.getElementById("resetDemoBtn").addEventListener("click", () => {
+        items = JSON.parse(JSON.stringify(DEMO_ITEMS));
+        saveData();
+        render();
+        showToast("Reset to demo data", "🔄");
+      });
+
+      // Backup JSON
+      document.getElementById("exportDataBtn").addEventListener("click", () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items, null, 2));
+        const downloadAnchor = document.createElement("a");
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `subradar_backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        showToast("Backup downloaded!", "💾");
+      });
+
+      // Restore JSON
+      document.getElementById("importFileInput").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(event.target.result);
+            if (Array.isArray(parsed)) {
+              items = parsed;
+              saveData();
+              render();
+              showToast("Data restored successfully!", "✅");
+            }
+          } catch (err) {
+            showToast("Invalid JSON file", "❌");
+          }
+        };
+        reader.readAsText(file);
+      });
+    });
+  </script>
+</body>
+</html>
